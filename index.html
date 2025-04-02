@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>점프킹 클론</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: skyblue; }
+        canvas { display: block; }
+        #gameOverScreen { 
+            display: none; 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            background: rgba(0,0,0,0.8); 
+            color: white; 
+            padding: 20px; 
+            font-size: 24px; 
+            text-align: center; 
+        }
+        #powerBarContainer {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 20px;
+            background: gray;
+            display: none;
+        }
+        #powerBar {
+            width: 0%;
+            height: 100%;
+            background: red;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="gameOverScreen">게임 오버! 다시 시작하려면 R을 누르세요.</div>
+    <div id="powerBarContainer">
+        <div id="powerBar"></div>
+    </div>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const powerBarContainer = document.getElementById("powerBarContainer");
+        const powerBar = document.getElementById("powerBar");
+        const gameOverScreen = document.getElementById("gameOverScreen");
+
+        let player = { x: canvas.width / 2, y: canvas.height - 50, vx: 0, vy: 0, power: 0, onGround: true, direction: 0 };
+        let platforms = [];
+        let charging = false;
+        let gameOver = false;
+        let increasing = true;
+
+        function createPlatforms() {
+            platforms = [{ x: canvas.width / 2 - 50, y: canvas.height - 20, width: 100, height: 10 }];
+            for (let i = 1; i < 15; i++) {
+                let width = 100;
+                let platform = {
+                    x: Math.random() * (canvas.width - width),
+                    y: canvas.height - i * 100,
+                    width: width,
+                    height: 10
+                };
+                platforms.push(platform);
+            }
+        }
+
+        function chargePower() {
+            if (charging) {
+                if (increasing) {
+                    player.power += 0.1;
+                    if (player.power >= 7) increasing = false;
+                } else {
+                    player.power -= 0.1;
+                    if (player.power <= 0) increasing = true;
+                }
+                powerBar.style.width = Math.max(0, Math.min(player.power * 14, 100)) + "%";
+                requestAnimationFrame(chargePower);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "black";
+            ctx.fillRect(player.x - 10, player.y - 20, 20, 20);
+            ctx.fillStyle = "brown";
+            platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
+        }
+
+        function update() {
+            if (gameOver) return;
+
+            player.y += player.vy;
+            player.x += player.vx;
+            player.vy += 0.5;
+
+            if (player.y > canvas.height) {
+                gameOverScreen.style.display = "block";
+                gameOver = true;
+                return;
+            }
+
+            platforms.forEach(p => {
+                if (
+                    player.vy > 0 &&
+                    player.y + 20 > p.y &&
+                    player.y + 20 - player.vy < p.y &&
+                    player.x + 10 > p.x &&
+                    player.x - 10 < p.x + p.width
+                ) {
+                    player.vy = 0;
+                    player.onGround = true;
+                    player.y = p.y - 20;
+                }
+            });
+        }
+
+        window.addEventListener("keydown", (e) => {
+            if (e.code === "Space" && player.onGround) {
+                charging = true;
+                increasing = true;
+                powerBarContainer.style.display = "block";
+                player.power = 0;
+                chargePower();
+            }
+            if (e.code === "ArrowLeft") {
+                player.vx = -3;
+            }
+            if (e.code === "ArrowRight") {
+                player.vx = 3;
+            }
+            if (e.code === "KeyR" && gameOver) {
+                location.reload();
+            }
+        });
+
+        window.addEventListener("keyup", (e) => {
+            if (e.code === "Space" && charging) {
+                charging = false;
+                powerBarContainer.style.display = "none";
+                player.vy = -Math.min(45, player.power * 6); // 점프력을 3배 증가 후 2배 감소
+                player.onGround = false;
+            }
+            if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
+                player.vx = 0;
+            }
+        });
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        createPlatforms();
+        gameLoop();
+    </script>
+</body>
+</html>
+
+
